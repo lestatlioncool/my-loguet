@@ -285,14 +285,36 @@ export default function Home() {
 
       {view === 'list' && (
         <div className="animate-fade-in">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="font-bold text-lg">{currentFilter}の一覧</h2>
-            <button onClick={() => setView('top')} className="text-sm text-indigo-600 font-bold bg-white px-4 py-2 rounded-full shadow-sm">戻る</button>
+          <div className="flex justify-between items-center mb-4 sticky top-0 z-20 bg-white/95 backdrop-blur py-3 border-b border-gray-100">
+            <h2 className="font-bold text-lg text-gray-800">
+              <i className="fas fa-list mr-2 text-indigo-500"></i>
+              {currentFilter === 'ALL' ? 'すべての宿' : `${currentFilter}の宿`}
+            </h2>
+            <button onClick={() => setView('top')} className="text-sm text-indigo-600 font-bold bg-white border border-indigo-100 px-4 py-1.5 rounded-full shadow-sm active:scale-95 transition">
+              <i className="fas fa-arrow-left mr-1"></i>戻る
+            </button>
           </div>
-          <div className="text-center text-gray-400 py-20">ここにリストが表示されます（次のステップで実装）</div>
+
+          <div className="space-y-6 pb-20">
+            {hotels
+              .filter(h => {
+                if (h.isWishlist) return false;
+                if (currentFilter !== 'ALL' && h.category !== currentFilter) return false;
+                return true;
+              })
+              .map(hotel => (
+                <HotelCard key={hotel.id} data={hotel} />
+              ))}
+
+            {hotels.filter(h => !h.isWishlist && (currentFilter === 'ALL' || h.category === currentFilter)).length === 0 && (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                <i className="fas fa-inbox fa-3x mb-2"></i>
+                <p>データがありません</p>
+              </div>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+      )}    </div>
   );
 }
 
@@ -307,3 +329,197 @@ const menuItems = [
   { label: "日本制覇", icon: "fa-map", bg: "bg-blue-100", text: "text-blue-600" },
   { label: "世界制覇", icon: "fa-globe-americas", bg: "bg-cyan-100", text: "text-cyan-600" },
 ];
+
+// --- Sub Components ---
+
+function HotelCard({ data }: { data: HotelData }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  // 安全なデータ取得
+  const safe = (v: any) => (v !== undefined && v !== null) ? v : '-';
+  const nY = '洋一';
+  const nF = '文子';
+
+  // 日付・泊数計算
+  let dateDisp = safe(data.date);
+  let nights = 1;
+  if (data.checkin && data.checkout) {
+    const diff = Math.ceil((new Date(data.checkout).getTime() - new Date(data.checkin).getTime()) / (1000 * 60 * 60 * 24));
+    nights = Math.max(1, diff);
+    dateDisp = (
+      <>
+        <i className="far fa-calendar-alt mr-1"></i>
+        {data.checkin} 〜 {data.checkout}
+        <span className="bg-gray-100 px-1 rounded text-[10px] ml-1">{nights}泊</span>
+      </>
+    );
+  }
+
+  // 価格・コスパ計算
+  let priceHtml = null;
+  if (data.price) {
+    const total = parseInt(data.price);
+    let perNightHtml = null;
+    let cpDisp = '-';
+    
+    if (nights > 0) {
+      const perNight = Math.round(total / nights);
+      perNightHtml = <span className="ml-2 text-xs font-normal text-gray-500">(1泊：{perNight.toLocaleString()}円)</span>;
+      
+      if (data.totalScore) {
+        const cpValue = data.totalScore / (perNight / 1000);
+        cpDisp = cpValue.toFixed(2);
+      }
+    }
+
+    priceHtml = (
+      <div className="mt-1 text-sm font-bold text-gray-700 flex items-center flex-wrap">
+        合計：{total.toLocaleString()}円 {perNightHtml}
+        <span className="ml-auto bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full border border-orange-200">
+          コスパ：{cpDisp}pt
+        </span>
+      </div>
+    );
+  }
+
+  // 写真エリア（カルーセル構造の再現）
+  const photos = data.photos && data.photos.length > 0 ? data.photos : (data.photo ? [data.photo] : []);
+  const photoArea = photos.length > 0 ? (
+    <div className="flex overflow-x-auto scroll-smooth w-full h-56 bg-gray-200 snap-x snap-mandatory no-scrollbar">
+      {photos.map((url, i) => (
+        <div key={i} className="flex-shrink-0 w-full h-full relative snap-center cursor-pointer">
+          <img src={url} className="w-full h-full object-cover" loading="lazy" />
+          {photos.length > 1 && (
+            <span className="absolute bottom-2 right-2 bg-black/60 text-white px-2 py-0.5 rounded-full text-[10px] backdrop-blur-sm">
+              {i + 1}/{photos.length}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="w-full h-56 bg-gray-100 flex items-center justify-center text-gray-300">
+      <i className="fas fa-image fa-3x"></i>
+    </div>
+  );
+
+  // カテゴリバッジスタイル
+  const catStyle = data.category === '国内' ? 'bg-green-100 text-green-700' : 
+                   data.category === '海外' ? 'bg-blue-100 text-blue-700' : 
+                   'bg-pink-100 text-pink-700';
+
+  return (
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden border border-gray-100 mb-6 transition hover:shadow-md">
+      <div className="flex flex-col md:flex-row">
+        <div className="md:w-1/3 relative group">
+          {photoArea}
+          <div className="absolute top-3 right-3 bg-yellow-400 text-white font-bold rounded-full w-14 h-14 flex items-center justify-center shadow-lg text-xl border-4 border-white z-10 font-mono tracking-tighter transform rotate-12">
+            {safe(data.totalScore)}
+          </div>
+          {data.category && (
+            <div className={`absolute top-3 left-3 ${catStyle} text-xs font-bold px-3 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm`}>
+              {data.category}
+            </div>
+          )}
+        </div>
+        
+        <div className="p-5 md:w-2/3 flex flex-col justify-between">
+          <div>
+            <div className="text-xs text-gray-400 mb-1 flex items-center">{dateDisp}</div>
+            <h2 className="text-xl font-bold text-gray-800 leading-tight flex items-center mb-1">
+              {safe(data.name)}
+            </h2>
+            
+            {data.address && (
+              <div className="text-xs text-gray-500 mb-1 truncate">
+                <i className="fas fa-map-pin mr-1 text-red-400"></i>{data.address}
+              </div>
+            )}
+            
+            {data.tags && data.tags.length > 0 && (
+              <div className="flex flex-wrap mt-2 mb-2">
+                {data.tags.map(t => (
+                  <span key={t} className="text-[10px] bg-indigo-50 text-indigo-600 px-2 py-1 rounded-full mr-1 mb-1 border border-indigo-100">
+                    #{t}
+                  </span>
+                ))}
+              </div>
+            )}
+            
+            {priceHtml}
+
+            <div className="grid grid-cols-2 gap-4 my-4">
+              <div className="bg-blue-50/50 p-3 rounded-xl flex items-center gap-3 border border-blue-100">
+                <div className="w-12 h-12 rounded-full bg-white flex-shrink-0 flex items-center justify-center text-blue-500 text-2xl border-2 border-white shadow-md overflow-hidden">
+                  <i className="fas fa-male"></i>
+                </div>
+                <div>
+                  <p className="text-xs text-blue-800 font-bold">{nY}</p>
+                  <p className="text-2xl font-bold text-gray-800 font-mono">
+                    {data.isDoneY === false ? <span className="text-gray-400 text-sm">未</span> : safe(data.sumY)}
+                  </p>
+                </div>
+              </div>
+              <div className="bg-pink-50/50 p-3 rounded-xl flex items-center gap-3 border border-pink-100">
+                <div className="w-12 h-12 rounded-full bg-white flex-shrink-0 flex items-center justify-center text-pink-500 text-2xl border-2 border-white shadow-md overflow-hidden">
+                  <i className="fas fa-female"></i>
+                </div>
+                <div>
+                  <p className="text-xs text-pink-800 font-bold">{nF}</p>
+                  <p className="text-2xl font-bold text-gray-800 font-mono">
+                    {data.isDoneF === false ? <span className="text-gray-400 text-sm">未</span> : safe(data.sumF)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-gray-600 text-sm mb-4 whitespace-pre-wrap leading-relaxed">
+              {safe(data.memo)}
+            </p>
+          </div>
+
+          <div className="flex gap-2 flex-wrap">
+            <button className="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 py-2.5 rounded-lg text-sm transition font-bold border border-indigo-200 opacity-50 cursor-not-allowed" title="実装中">
+              <i className="fas fa-sync-alt mr-1"></i>再訪
+            </button>
+            <button className="flex-1 bg-yellow-50 hover:bg-yellow-100 text-yellow-700 py-2.5 rounded-lg text-sm transition font-bold border border-yellow-200 opacity-50 cursor-not-allowed" title="実装中">
+              <i className="fas fa-edit mr-1"></i>編集
+            </button>
+            <button onClick={() => setIsOpen(!isOpen)} className="flex-1 bg-gray-50 hover:bg-gray-100 text-gray-600 py-2.5 rounded-lg text-sm transition border border-gray-200">
+              <i className={`fas ${isOpen ? 'fa-chevron-up' : 'fa-list-ul'} mr-1`}></i>{isOpen ? '閉じる' : '内訳'}
+            </button>
+            <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.address || data.name)}`} target="_blank" rel="noopener noreferrer" className="flex-1 bg-green-50 hover:bg-green-100 text-green-700 py-2.5 rounded-lg text-center text-sm transition border border-green-200 font-bold">
+              <i className="fas fa-map-marker-alt mr-1"></i>地図
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="bg-gray-50 p-5 border-t border-gray-100 animate-[fadeIn_0.3s_ease]">
+          <h4 className="text-xs font-bold text-gray-400 mb-3 text-center tracking-widest">— 項目別スコア詳細 —</h4>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+            {SCORE_CATEGORIES.map(c => {
+              const labelY = c.id === 'other' ? (data.labelY || c.label) : c.label;
+              const labelF = c.id === 'other' ? (data.labelF || c.label) : c.label;
+              const displayLabel = labelY === labelF ? labelY : `${labelY}/${labelF}`;
+              const valY = (data.scoresY && data.scoresY[c.id]) ? data.scoresY[c.id] : ((c.id === 'other' && data.labelY) ? 3 : '-');
+              const valF = (data.scoresF && data.scoresF[c.id]) ? data.scoresF[c.id] : ((c.id === 'other' && data.labelF) ? 3 : '-');
+
+              return (
+                <div key={c.id} className="flex justify-between border-b border-gray-200/50 py-1 items-center">
+                  <span className="text-gray-500 truncate mr-2">{displayLabel}</span>
+                  <div className="font-mono flex-shrink-0">
+                    <span className="text-blue-600 font-bold">{data.isDoneY === false ? '-' : valY}</span>
+                    <span className="text-gray-300 mx-1">/</span>
+                    <span className="text-pink-600 font-bold">{data.isDoneF === false ? '-' : valF}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

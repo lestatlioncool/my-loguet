@@ -21,11 +21,14 @@ export default function RootLayout({
   return (
     <html lang="ja">
       <head>
+        {/* アイコン (FontAwesome) */}
         <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-          precedence="default"
         />
+        {/* 地図ライブラリ (Leaflet) */}
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
       </head>
       <body className="bg-indigo-50 min-h-screen pb-24 text-gray-700 font-sans selection:bg-indigo-100 selection:text-indigo-800">
         <header className="bg-white/90 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-indigo-50">
